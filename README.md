@@ -3,7 +3,7 @@
 
  ## Tiled
 
- Tiled is a popular open source 2D map editor: [MapEditor.org](mapeditor.org)
+ Tiled is a popular open source 2D map editor: [MapEditor.org](https://www.mapeditor.org)
 
 
 * [Setting up a project in Tiled](setup.md)

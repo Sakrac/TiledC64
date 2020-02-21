@@ -1,5 +1,5 @@
 # TiledC64
- Converts Tiled msps to C64 binary data. This tool is a command line tool that converts .tmx files and does not extend or modify the Tiled editor.
+ Converts Tiled maps to C64 binary data. This tool is a command line tool that converts .tmx files and does not extend or modify the Tiled editor.
 
  ## Tiled
 
@@ -43,7 +43,7 @@ My curent method for making 2D maps for the C64 has been to create the map in Pi
 
 Attempting to make a 4k game this way means I would spend a lot of time placing tiles, then time to make another tool to try to get the data as small as possible.
 
-Basically in Shovel Knight 64 the screens are 1000 screen bytes + 500 color bytes + characters each but that would be ok with a cartridge.
+For example, in Shovel Knight 64 the screens are 1000 screen bytes + 500 color bytes + characters for each but that would be ok with a cartridge.
 
 For the new project I want to minimize the size so by using 5x5 sized meta tiles each screen is instead 40 bytes with the bulk of memory in a shared pool of character data, screen and color data for each tile, etc.
 

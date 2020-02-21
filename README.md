@@ -30,7 +30,7 @@ Note that all customization and destination files are set up as User Properties 
 	TiledC64 -img <image> [-col=#,#,#,#] [-meta=wid,hgt] [-screenBits=#] [-colorBits=#] [-metaMapBits=#] [-metaLookupBits=#] [-type={mode}] [-export=<destination>] [-stats=<output.txt>]
 Where the type is one of the following modes:
 * Text
-* TextNC* (in development)
+* TextMC* (in development)
 * ECBM
 * Bitmap
 * BitmapMC* (in development)

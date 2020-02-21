@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\TiledReader.cpp" />
+    <ClCompile Include="..\struse\samples\xml.cpp">
+      <Filter>struse</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MapRead.cpp" />
+    <ClCompile Include="..\ArtRead.cpp" />
+    <ClCompile Include="..\BuildChars.cpp" />
+    <ClCompile Include="..\MetaTiles.cpp" />
+    <ClCompile Include="..\MapWrite.cpp" />
+    <ClCompile Include="..\MergeMap.cpp" />
+    <ClCompile Include="..\LoadImg.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="struse">
+      <UniqueIdentifier>{9a4f7bc6-50c8-4b93-b746-9d30312654b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="stb">
+      <UniqueIdentifier>{c620d5c5-511b-424b-911e-d0be31961cb2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\struse\struse.h">
+      <Filter>struse</Filter>
+    </ClInclude>
+    <ClInclude Include="..\struse\samples\xml.h">
+      <Filter>struse</Filter>
+    </ClInclude>
+    <ClInclude Include="..\stb\stb_image.h">
+      <Filter>stb</Filter>
+    </ClInclude>
+    <ClInclude Include="..\stb\stb_image_write.h">
+      <Filter>stb</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapRead.h" />
+    <ClInclude Include="..\ArtRead.h" />
+    <ClInclude Include="..\BuildChars.h" />
+    <ClInclude Include="..\MetaTiles.h" />
+    <ClInclude Include="..\MapWrite.h" />
+    <ClInclude Include="..\MergeMap.h" />
+    <ClInclude Include="..\LoadImg.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\struse\struse.natvis">
+      <Filter>struse</Filter>
+    </Natvis>
+  </ItemGroup>
+</Project>

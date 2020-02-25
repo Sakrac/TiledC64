@@ -69,8 +69,8 @@ bool LoadImgMap(TileMap& map,
 		strref height(metaStr);
 		height.trim_whitespace();
 		strref width = height.split_token_trim(',');
-		layer->metaX = width.atoi();
-		layer->metaY = height.atoi();
+		layer->metaX = (uint32_t)width.atoi();
+		layer->metaY = (uint32_t)height.atoi();
 	}
 
 	if (scrBitStr) {
@@ -114,6 +114,7 @@ bool LoadImgMap(TileMap& map,
 
 	layer->map = (uint32_t*)malloc(sizeof(uint32_t) * layer->width * layer->height);
 	for (size_t i = 0, n = layer->width * layer->height; i < n; ++i) {
-		layer->map[i] = i + 1;
+		layer->map[i] = (uint32_t)(i + 1);
 	}
+	return true;
 }

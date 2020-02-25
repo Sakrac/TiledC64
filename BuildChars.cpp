@@ -393,10 +393,12 @@ bool ConvertBitmapLayer(TileMap& map, int layerIndex)
 	uint32_t* tiles = layer.map;
 	uint8_t* screen = (uint8_t*)calloc(1, layerSize);
 	uint8_t* color = (uint8_t*)calloc(1, layerSize);
+	uint8_t* flips = (uint8_t*)calloc(1, layerSize);
 	for (size_t slot = 0; slot < layerSize; ++slot) {
 		uint32_t index = *tiles++;
 		uint32_t flip = index >> 28;
 		index &= 0xfffffff;
+		flips[slot] = flip;	// even if empty track the flip
 		if (index) {	// empty char, store with black color & index 0
 			// find the corresopnding tileset
 			for (size_t t = 0, nt = map.tileSets.size(); t < nt; ++t) {
@@ -437,6 +439,7 @@ bool ConvertBitmapLayer(TileMap& map, int layerIndex)
 	layer.screen = screen;
 	layer.color = color;
 	layer.numChars = numChars;
+	layer.flips = flips;
 	return true;
 }
 

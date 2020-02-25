@@ -59,6 +59,7 @@ struct TileLayer {
 	strref name;		// layer name if relevant at smoe point
 	strref target;		// if merging data into another tile buffer
 	strref flipTarget;	// layer flip/rotation bits copied here
+	strref flipSource;	// consider flipping based on this layer, on top of flipping within this layer
 	strref exportFile;	// filename without extension to export binary data to (chr, scr, col, mtm, mtt, bin)
 	strref mergeChars;	// merge chars from this layer into named layer
 	Type type;

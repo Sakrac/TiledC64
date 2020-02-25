@@ -115,6 +115,8 @@ bool ReadMapXML(void* user, strref tag_or_data, const strref* tag_stack, int dep
 					layer->metaMapBits = (int)value.get_trimmed_ws().atoi();
 				} else if (name.same_str("MetaLookupBits")) {
 					layer->metaLookupBits = (int)value.get_trimmed_ws().atoi();
+				} else if (name.same_str("FlipSource")) {
+					layer->flipSource = value.get_trimmed_ws();
 				} else if (name.same_str("FlipTarget")) {
 					layer->flipTarget = value.split_token_trim(',');
 					layer->flipBitShift = value.atoi_skip();

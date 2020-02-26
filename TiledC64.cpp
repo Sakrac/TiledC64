@@ -12,6 +12,19 @@
 #include "MergeMap.h"
 #include "LoadImg.h"
 
+// Fixes to do:
+//	* char flip rotation considered for matching chars (bitmap)
+//	* meta tile rotation depends on rotation of chars+color+char rotations
+//	* take tile properties into account for rotation matching
+//	* enumerate tile flips for Bits layers
+//	* add char rotations to tile meta maps
+
+// Added:
+//	* properties per tile in tiled
+//	 - Rot, FlipX, FlipY, FlipEnum - can disable tile flips/rotations if they don't matter for that tile
+
+
+
 // c:\code\4k2\assets\Castle4x4.tmx -palette=c:\code\TiledC64\pixcen_default.png
 
 #define MAX_ARGS 32

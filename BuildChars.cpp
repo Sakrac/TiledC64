@@ -287,6 +287,31 @@ bool ConvertTextMCLayer(TileMap& map, int layerIndex)
 	return true;
 }
 
+
+// check against various flips and rotations of existing chars
+uint64_t FlipChar(uint64_t o, bool flipX, bool flipY, bool rot)
+{
+	if (rot) {
+		uint64_t e = 0;
+		for (size_t y = 0; y < 8; ++y) for (size_t x = 0; x < 8; ++x) {
+			if (o&(1ULL << ((y << 3) | x))) { e |= 1ULL << ((x << 3) | (y^7)); }
+		}
+	}
+	if (flipX) {
+		uint64_t h = ((o & 0xf0f0f0f0f0f0f0f0ULL) >> 4) | ((o & 0x0f0f0f0f0f0f0f0fULL) << 4);
+		uint64_t q = ((h & 0xccccccccccccccccULL) >> 2) | ((h & 0x3333333333333333ULL) << 2);
+		uint64_t e = ((q & 0xaaaaaaaaaaaaaaaaULL) >> 1) | ((h & 0x5555555555555555ULL) << 1);
+		o = e;
+	}
+	if (flipY) {
+		uint64_t h = ((o & 0xffffffff00000000ULL) >> 32) | ((o & 0x00000000ffffffffULL) << 32);
+		uint64_t q = ((h & 0xffff0000ffff0000ULL) >> 16) | ((h & 0x0000ffff0000ffffULL) << 16);
+		uint64_t e = ((q & 0xff00ff00ff00ff00ULL) >>  8) | ((e & 0x00ff00ff00ffff00ULL) <<  8);
+		o = e;
+	}
+	return o;
+}
+
 // returns number of unique chars
 bool ConvertECBMLayer(TileMap& map, int layerIndex)
 {

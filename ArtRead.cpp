@@ -92,7 +92,7 @@ bool LoadTileSetImages(TileMap& map, const char* mapFilename)
 					memset(exp, 0xff, x*y * 4);
 					uint8_t *out = exp, *in=data;
 					for (size_t p = 0, np = x*y; p < np; ++p) {
-						for (size_t c = 0; c < n; ++c) { *out++ = *in++; }
+						for (size_t c = 0; c < (size_t)n; ++c) { *out++ = *in++; }
 						out += 4 - n;
 					}
 					stbi_image_free(data);

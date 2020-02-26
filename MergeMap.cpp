@@ -169,16 +169,16 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 					while (strref line = log.line()) {
 						line.trim_whitespace();
 						strref param = line.split_token_trim('=');
-						if (param.same_str("width")) { wid = line.atoi(); }
-						else if (param.same_str("height")) { hgt = line.atoi(); }
+						if (param.same_str("width")) { wid = (size_t)line.atoi(); }
+						else if (param.same_str("height")) { hgt = (size_t)line.atoi(); }
 						else if (param.same_str("meta")) {
 							if (first) { hasMeta = !!line.atoi(); hasScreen = !hasMeta; }
 							else if (hasMeta != !!line.atoi()) { success = false; }
 						} else if (param.same_str("screenBits")) {
-							if (first) { screenBits = line.atoi(); }
+							if (first) { screenBits = (size_t)line.atoi(); }
 							else if (screenBits != line.atoi()) { success = false; }
 						} else if (param.same_str("colorBits")) {
-							if (first) { colorBits = line.atoi(); }
+							if (first) { colorBits = (size_t)line.atoi(); }
 							else if (colorBits != line.atoi()) { success = false; }
 						}  else if (param.same_str("hasColor")) {
 							if (first) { hasColor = !!line.atoi(); }
@@ -190,23 +190,23 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 							if (first) { hasMetaLookup = !!line.atoi(); }
 							else if (hasMetaLookup != !!line.atoi()) { success = false; }
 						} else if (param.same_str("metaX")) {
-							if (first) { metaX = line.atoi(); }
+							if (first) { metaX = (size_t)line.atoi(); }
 							else if (metaX != line.atoi()) { success = false; }
 						} else if (param.same_str("metaY")) {
-							if (first) { metaY = line.atoi(); }
+							if (first) { metaY = (size_t)line.atoi(); }
 							else if (metaY != line.atoi()) { success = false; }
 						} else if (param.same_str("metaMapBits")) {
-							if (first) { metaMapBits = line.atoi(); }
+							if (first) { metaMapBits = (size_t)line.atoi(); }
 							else if (metaMapBits != line.atoi()) { success = false; }
 						} else if (param.same_str("metaLookupBits")) {
-							if (first) { metaLookupBits = line.atoi(); }
+							if (first) { metaLookupBits = (size_t)line.atoi(); }
 							else if (metaLookupBits != line.atoi()) { success = false; }
 						} else if (param.same_str("numMetaIndex")) {
-							numMetaIndex = line.atoi();
+							numMetaIndex = (size_t)line.atoi();
 						} else if (param.same_str("numMetaColor")) {
-							numMetaColor = line.atoi();
+							numMetaColor = (size_t)line.atoi();
 						} else if (param.same_str("numMetaLookup")) {
-							layerNumLookup = line.atoi();
+							layerNumLookup = (size_t)line.atoi();
 						}
 					}
 					free(logData);

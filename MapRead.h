@@ -2,14 +2,23 @@
 #include <inttypes.h>
 
 struct TileSet {
+	enum TileProperty {
+		CanFlipX = 1,		// this tile knows about flipping horizontally (default)
+		CanFlipY = 2,		// this tile knows about flipping vertically (default)
+		CanRot = 4,			// this tile knows about rotation (default)
+		EnumFlip = 8		// instead of flip flags enumerate indices from flips&rot and push following indices (not default)
+	};
+
 	void* tileSetFile;
-	uint8_t* imageData;
-	uint8_t* imagePalettized;
+	uint8_t *imageData;
+	uint8_t *imagePalettized;
+	uint8_t *tileProperties;	// bits from TileProperty enums
 	strref xmlName;		// from map file
 	strref imageName;
 	uint32_t first;			// from map file
 	uint32_t count;
 	uint32_t columns;
+	uint32_t currTile;
 	uint32_t width, height;	// in tiles
 	uint32_t tile_wid, tile_hgt;	// in tiles
 	uint32_t img_wid, img_hgt;

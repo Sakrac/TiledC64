@@ -236,10 +236,37 @@ bool ReadTilesetXML(void* user, strref tag_or_data, const strref* tag_stack, int
 			tileset.tile_hgt = (int)XMLFindAttr(tag_or_data, strref("tileheight")).atoi();
 			tileset.columns = (int)XMLFindAttr(tag_or_data, strref("columns")).atoi();
 			tileset.count = (int)XMLFindAttr(tag_or_data, strref("tilecount")).atoi();
+			// allocate a property flag table for the tileset.
+			if( tileset.count) {
+				tileset.tileProperties = (uint8_t*)malloc(tileset.count);
+				memset(tileset.tileProperties, TileSet::CanFlipX | TileSet::CanFlipY | TileSet::CanRot, tileset.count);
+			}
 		} else if (tag.same_str("image")) {
 			tileset.width = (int)XMLFindAttr(tag_or_data, strref("width")).atoi() / tileset.tile_wid;
 			tileset.height = (int)XMLFindAttr(tag_or_data, strref("height")).atoi() / tileset.tile_hgt;
 			tileset.imageName = XMLFindAttr(tag_or_data, strref("source"));
+		} else if (tag.same_str("tile")) {
+			tileset.currTile = (uint32_t)XMLFindAttr(tag_or_data, strref("id")).atoi();
+		} else if (depth >= 2 && tag.same_str("property")) {
+			strref parent = tag_stack[1].get_word();
+			strref name = XMLFindAttr(tag_or_data, strref("name"));
+			strref value = XMLFindAttr(tag_or_data, strref("value")).get_trimmed_ws();
+			if (parent.same_str("tile") && tileset.currTile < tileset.count ) {
+				TileLayer* layer = &map->layers[map->layers.size() - 1];
+				if (name.same_str("flipX")) {
+					if (value.same_str("false")) { tileset.tileProperties[tileset.currTile] &= ~TileSet::CanFlipX; }
+					else { tileset.tileProperties[tileset.currTile] |= TileSet::CanFlipX; }
+				} else if (name.same_str("flipY")) {
+					if (value.same_str("false")) { tileset.tileProperties[tileset.currTile] &= ~TileSet::CanFlipY; }
+					else { tileset.tileProperties[tileset.currTile] |= TileSet::CanFlipY; }
+				} else if (name.same_str("Rot")) {
+					if (value.same_str("false")) { tileset.tileProperties[tileset.currTile] &= ~TileSet::CanRot; }
+					else { tileset.tileProperties[tileset.currTile] |= TileSet::CanRot; }
+				} else if (name.same_str("flipEnum")) {
+					if (value.same_str("false")) { tileset.tileProperties[tileset.currTile] &= ~TileSet::EnumFlip; }
+					else { tileset.tileProperties[tileset.currTile] |= TileSet::EnumFlip; }
+				}
+			}
 		}
 	}
 

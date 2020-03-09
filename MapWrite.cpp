@@ -92,6 +92,25 @@ bool WriteMapData(TileMap& map, const char* mapFilename)
 				fprintf(flog, "screenBits = %d\ncolorBits = %d\n", layer->screenBits ? layer->screenBits : 8, layer->colorBits ? layer->colorBits : 8);
 				fprintf(flog, "hasColor = %d\n", layer->color ? 1 : 0);
 				fprintf(flog, "hasChars = %d\n", layer->numChars ? 1 : 0);
+				fprintf(flog, "hasFlipX = %d\n", (layer->flipType&TileLayer::TileFlipX) ? 1 : 0);
+				fprintf(flog, "hasFlipY = %d\n", (layer->flipType & TileLayer::TileFlipY) ? 1 : 0);
+				fprintf(flog, "hasRot = %d\n", (layer->flipType & TileLayer::TileRot) ? 1 : 0);
+				fprintf(flog, "canInvert = %d\n", layer->type == TileLayer::Bitmap);
+
+				uint32_t numBits = 0;
+				uint8_t flipX = 0, flipY = 0, rot = 0;
+				if (layer->flipType & TileLayer::TileFlipX) {
+					fprintf(flog, "flipXBit = %d\n", layer->flipBitShift + numBits);
+					++numBits;
+				}
+				if (layer->flipType & TileLayer::TileFlipY) {
+					fprintf(flog, "flipYBit = %d\n", layer->flipBitShift + numBits);
+					++numBits;
+				}
+				if (layer->flipType & TileLayer::TileRot) {
+					fprintf(flog, "RotBit = %d\n", layer->flipBitShift + numBits);
+					++numBits;
+				}
 
 				if (layer->metaMap) {
 					fprintf(flog, "metaLookup = %d\n", layer->metaLookupMap ? 1 : 0);

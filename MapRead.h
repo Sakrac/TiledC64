@@ -52,7 +52,9 @@ struct TileLayer {
 		TileFlipX = 1,
 		TileFlipY = 2,
 		TileRot = 4,
-		ToCRAM = 8
+		ToCRAM = 8,
+		Inverted = 16,
+		FlipUndef = -1
 	};
 	uint32_t *map;			// in 32 bit indices in ranges for each tileset
 	uint8_t *flips;		// keep track of the flip bits from the map

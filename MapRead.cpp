@@ -126,6 +126,12 @@ bool ReadMapXML(void* user, strref tag_or_data, const strref* tag_stack, int dep
 						if (arg.same_str("Rot")) { layer->flipType |= TileLayer::TileRot; }
 						if (arg.same_str("CRAM")) { layer->flipType |= TileLayer::ToCRAM; }
 					}
+				} else if (name.same_str("FlipX")) {
+					layer->flipType |= TileLayer::TileFlipX;
+				} else if (name.same_str("FlipY")) {
+					layer->flipType |= TileLayer::TileFlipY;
+				} else if (name.same_str("Rot")) {
+					layer->flipType |= TileLayer::TileRot;
 				} else if (name.same_str("bg")) {
 					int i = 0;
 					while (strref col = value.split_token(',')) {

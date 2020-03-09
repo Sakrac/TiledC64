@@ -6,6 +6,19 @@
 #include <inttypes.h>
 #include "BuildChars.h"
 
+// convert from Tiled's flip/rotation order to a more organized bit field
+
+static TileLayer::FlipType TiledFlipFlop[] = {
+	TileLayer::NoFlip,
+	TileLayer::FlipUndef,
+	TileLayer::TileFlipY,
+	TileLayer::TileRot,
+	TileLayer::TileFlipX,
+	(TileLayer::FlipType)(TileLayer::TileRot | TileLayer::TileFlipX | TileLayer::TileFlipY),
+	(TileLayer::FlipType)(TileLayer::TileFlipX | TileLayer::TileFlipY),
+	TileLayer::FlipUndef
+};
+
 // counts how many unique tile indices are used in this layer, the number of binary unique tiles are less or equal
 int CountRawTiles(const TileMap& map, int layerIndex)
 {
@@ -40,6 +53,70 @@ int FindCharInSet(uint64_t curr, const size_t numChars, const uint64_t* chars)
 {
 	for (size_t c = 0; c < numChars; ++c) {
 		if (curr == chars[c]) { return (int)c; }
+	}
+	return -1;
+}
+
+// check against various flips and rotations of existing chars
+uint64_t FlipChar(uint64_t o, bool flipX, bool flipY, bool rot)
+{
+	if (rot) {
+		// a rotated character is 90 degrees clockwise so to match an existing
+		// character rotate this character counter clockwise
+		// 70 71 72 73 74 75 76 77
+		// 60 61 ...
+		// 07 0f 17 1f 27 2f 37 3f
+		// 06 0e ...
+		uint64_t e = 0;
+		for (size_t y = 0; y < 8; ++y) for (size_t x = 0; x < 8; ++x) {
+			if (o & (1ULL << ((y << 3) | x))) { e |= 1ULL << (((x^7) << 3) | y); }
+		}
+	}
+	if (flipX) {
+		uint64_t h = ((o & 0xf0f0f0f0f0f0f0f0ULL) >> 4) | ((o & 0x0f0f0f0f0f0f0f0fULL) << 4);
+		uint64_t q = ((h & 0xccccccccccccccccULL) >> 2) | ((h & 0x3333333333333333ULL) << 2);
+		uint64_t e = ((q & 0xaaaaaaaaaaaaaaaaULL) >> 1) | ((h & 0x5555555555555555ULL) << 1);
+		o = e;
+	}
+	if (flipY) {
+		uint64_t h = ((o & 0xffffffff00000000ULL) >> 32) | ((o & 0x00000000ffffffffULL) << 32);
+		uint64_t q = ((h & 0xffff0000ffff0000ULL) >> 16) | ((h & 0x0000ffff0000ffffULL) << 16);
+		uint64_t e = ((q & 0xff00ff00ff00ff00ULL) >> 8) | ((e & 0x00ff00ff00ffff00ULL) << 8);
+		o = e;
+	}
+	return o;
+}
+
+int FindCharInSet(uint64_t chr, const uint64_t* set, int setSize)
+{
+	for (int i = 0; i < setSize; ++i) {
+		if (set[i] == chr) { return i; }
+	}
+	return -1;
+}
+
+int FindMatchChar(uint32_t* permutation, uint64_t charBits, const int numChars, const uint64_t* chars, bool canFlipX, bool canFlipY, bool canRot, bool canInv)
+{
+	int match = -1;
+	for (size_t p = 0; p < 16 && match < 0; ++p) {
+		bool inv = !!(p & 1);
+		bool flipX = !!(p & 2);
+		bool flipY = !!(p & 4);
+		bool rot = !!(p & 8);
+		bool valid = true;
+		if (p == 0 || (flipX && canFlipX) || (flipY && canFlipY) || (rot && canRot) && (inv && canInv)) {
+			uint64_t charPermute = FlipChar(charBits, flipX, flipY, rot);
+			if (inv) { charPermute = ~charPermute; }
+			match = FindCharInSet(charPermute, chars, numChars);
+			if (match >= 0) {
+				uint32_t pm = (inv ? TileLayer::Inverted : 0) |
+					(rot ? TileLayer::TileRot : 0) |
+					(flipX ? TileLayer::TileFlipX : 0) |
+					(flipY ? TileLayer::TileFlipY : 0);
+				if (permutation) { *permutation = pm; }
+				return match;
+			}
+		}
 	}
 	return -1;
 }
@@ -149,15 +226,7 @@ bool IsCharMCHires(uint8_t* tile, uint8_t bg)
 	return !doublewide;
 }
 
-int FindCharInSet(uint64_t chr, uint64_t* set, int setSize)
-{
-	for (int i = 0; i < setSize; ++i) {
-		if (set[i] == chr) { return i; }
-	}
-	return -1;
-}
-
-uint8_t* GetTileAddress(int x, int y, uint8_t *image, size_t width)
+uint8_t* GetTileAddress(int x, int y, uint8_t *image, uint32_t width)
 {
 	return image + y * 8 * width + x * 8;
 }
@@ -288,30 +357,6 @@ bool ConvertTextMCLayer(TileMap& map, int layerIndex)
 }
 
 
-// check against various flips and rotations of existing chars
-uint64_t FlipChar(uint64_t o, bool flipX, bool flipY, bool rot)
-{
-	if (rot) {
-		uint64_t e = 0;
-		for (size_t y = 0; y < 8; ++y) for (size_t x = 0; x < 8; ++x) {
-			if (o&(1ULL << ((y << 3) | x))) { e |= 1ULL << ((x << 3) | (y^7)); }
-		}
-	}
-	if (flipX) {
-		uint64_t h = ((o & 0xf0f0f0f0f0f0f0f0ULL) >> 4) | ((o & 0x0f0f0f0f0f0f0f0fULL) << 4);
-		uint64_t q = ((h & 0xccccccccccccccccULL) >> 2) | ((h & 0x3333333333333333ULL) << 2);
-		uint64_t e = ((q & 0xaaaaaaaaaaaaaaaaULL) >> 1) | ((h & 0x5555555555555555ULL) << 1);
-		o = e;
-	}
-	if (flipY) {
-		uint64_t h = ((o & 0xffffffff00000000ULL) >> 32) | ((o & 0x00000000ffffffffULL) << 32);
-		uint64_t q = ((h & 0xffff0000ffff0000ULL) >> 16) | ((h & 0x0000ffff0000ffffULL) << 16);
-		uint64_t e = ((q & 0xff00ff00ff00ff00ULL) >>  8) | ((e & 0x00ff00ff00ffff00ULL) <<  8);
-		o = e;
-	}
-	return o;
-}
-
 // returns number of unique chars
 bool ConvertECBMLayer(TileMap& map, int layerIndex)
 {
@@ -333,7 +378,7 @@ bool ConvertECBMLayer(TileMap& map, int layerIndex)
 	uint8_t* flips = (uint8_t*)calloc(1, layerSize);
 	for (size_t slot = 0; slot < layerSize; ++slot) {
 		uint32_t index = *tiles++;
-		uint32_t flip = index >> 29;
+		uint32_t flip = index >> 29; // flip/rot are top 3 bits
 		index &= 0xfffffff;
 		flips[slot] = flip;	// even if empty track the flip
 		if (index) {	// empty char, store with black color & index 0
@@ -421,7 +466,7 @@ bool ConvertBitmapLayer(TileMap& map, int layerIndex)
 	uint8_t* flips = (uint8_t*)calloc(1, layerSize);
 	for (size_t slot = 0; slot < layerSize; ++slot) {
 		uint32_t index = *tiles++;
-		uint32_t flip = index >> 28;
+		uint32_t flip = (uint32_t)TiledFlipFlop[index >> 29];
 		index &= 0xfffffff;
 		flips[slot] = flip;	// even if empty track the flip
 		if (index) {	// empty char, store with black color & index 0
@@ -438,17 +483,25 @@ bool ConvertBitmapLayer(TileMap& map, int layerIndex)
 						uint64_t charBits = GetHiresChar(tileArt, c, tileSet.img_wid);
 
 						// is there a match?
-						int match = FindCharInSet(charBits, chars, numChars);
-						if (match < 0) {
-							match = FindCharInSet(charBits ^ 0xffffffffffffffffULL, chars, numChars);
-							// if no match check for an inverted version
-							if (match >= 0) {
+						uint32_t pm = 0;
+						int match = FindMatchChar(&pm, charBits, numChars, chars,
+												  !!(layer.flipType & TileLayer::TileFlipX),
+												  !!(layer.flipType & TileLayer::TileFlipY),
+												  !!(layer.flipType & TileLayer::TileRot),
+												  true);
+						if (match >= 0) {
+							// apply flip, rot & invert colors if a matching permutation was found
+							if (pm & TileLayer::Inverted) {
 								uint8_t ct = c[0]; c[0] = c[1]; c[1] = ct;
 							}
-							if (match < 0) { // new char!
-								match = numChars++;
-								chars[match] = charBits;
-							}
+							if (pm & TileLayer::TileFlipX) { flips[slot] ^= TileLayer::TileFlipX; }
+							if (pm & TileLayer::TileFlipY) { flips[slot] ^= TileLayer::TileFlipY; }
+							if (pm & TileLayer::TileRot) { flips[slot] ^= TileLayer::TileRot; }
+						}
+
+						if (match < 0) { // new char!
+							match = numChars++;
+							chars[match] = charBits;
 						}
 						screen[slot] = match;
 						color[slot] = (c[1]<<4)|c[0];
@@ -485,7 +538,7 @@ void ConvertDataLayer(TileMap& map, int layerIndex)
 				if (index >= tileSet.first && index < (tileSet.first + tileSet.count)) {
 					if (tileSet.imagePalettized) {
 						index -= tileSet.first;
-						screen[slot] = index;
+						if (screen) { screen[slot] = index; }
 					}
 					break;
 				}

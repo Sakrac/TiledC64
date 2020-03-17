@@ -7,16 +7,16 @@
 #include "BuildChars.h"
 
 // convert from Tiled's flip/rotation order to a more organized bit field
-
+// 0-no, 1-cw+x, 2-y, 3-cw+x+y, 4-x, 5-cw, 6-x+y, 7-cw+y 
 static TileLayer::FlipType TiledFlipFlop[] = {
 	TileLayer::NoFlip,
-	TileLayer::FlipUndef,
+	(TileLayer::FlipType)(TileLayer::TileRot | TileLayer::TileFlipX),
 	TileLayer::TileFlipY,
-	TileLayer::TileRot,
-	TileLayer::TileFlipX,
 	(TileLayer::FlipType)(TileLayer::TileRot | TileLayer::TileFlipX | TileLayer::TileFlipY),
+	TileLayer::TileFlipX,
+	TileLayer::TileRot,
 	(TileLayer::FlipType)(TileLayer::TileFlipX | TileLayer::TileFlipY),
-	TileLayer::FlipUndef
+	(TileLayer::FlipType)(TileLayer::TileRot | TileLayer::TileFlipY)
 };
 
 // counts how many unique tile indices are used in this layer, the number of binary unique tiles are less or equal
@@ -185,6 +185,7 @@ uint8_t Pick2ColorsFromTile(uint8_t* second, uint8_t *tile, size_t width)
 
 uint64_t GetHiresChar(uint8_t *tile, uint8_t colors[2], size_t width)
 {
+	if (colors[0] == colors[1]) { return 0; }
 	uint64_t bits = 0;	// return 64 bits
 	uint8_t* bytes = (uint8_t*)&bits; // but assign in bytes so endian is irrelevant
 	for (size_t y = 0; y < 8; ++y) {
@@ -252,13 +253,13 @@ bool ConvertTextLayer(TileMap& map, int layerIndex)
 
 	// map columns and rows doesn't matter, iterate all
 	TileLayer& layer = map.layers[layerIndex];
-	size_t layerSize = layer.width * layer.height;
+	size_t layerSize = (size_t)layer.width * (size_t)layer.height;
 	uint32_t* tiles = layer.map;
 	uint8_t* screen = (uint8_t*)calloc(1, layerSize);
 	uint8_t* color = (uint8_t*)calloc(1, layerSize);
 	for (size_t slot = 0; slot < layerSize; ++slot) {
 		uint32_t index = *tiles++;
-		uint32_t flip = index >> 28;
+		uint32_t flip = index >> 29;
 		index &= 0xfffffff;
 		if (index) {	// empty char, store with black color & index 0
 			// find the corresopnding tileset
@@ -524,12 +525,12 @@ bool ConvertBitmapLayer(TileMap& map, int layerIndex)
 void ConvertDataLayer(TileMap& map, int layerIndex)
 {
 	TileLayer& layer = map.layers[layerIndex];
-	size_t layerSize = layer.width * layer.height;
+	size_t layerSize = (size_t)layer.width * (size_t)layer.height;
 	uint32_t* tiles = layer.map;
 	uint8_t* screen = (uint8_t*)calloc(1, layerSize);	// data layer -> screen data
 	for (size_t slot = 0; slot < layerSize; ++slot) {
 		uint32_t index = *tiles++;
-		uint32_t flip = index >> 28;
+		uint32_t flip = index >> 29;
 		index &= 0xfffffff;
 		if (index) {	// empty char, store with black color & index 0
 						// find the corresopnding tileset
@@ -538,6 +539,49 @@ void ConvertDataLayer(TileMap& map, int layerIndex)
 				if (index >= tileSet.first && index < (tileSet.first + tileSet.count)) {
 					if (tileSet.imagePalettized) {
 						index -= tileSet.first;
+
+						uint8_t dataIndex = tileSet.tileIndex[index];
+						uint8_t properties = tileSet.tileProperties[index];
+						if (properties & TileSet::EnumFlip) {
+							properties &= ~TileSet::EnumFlip;
+							uint8_t outFlips = 0;
+							if ((flip & RotateFlag)) {
+								// if rotate flag and not allowed to rotate at least keep upper left corner in same direction
+								if (!(properties & TileSet::CanRot)) {
+									if (flip == RotateCW) { outFlips = TileLayer::TileFlipX; }
+									else if (flip == RotateCCW) { outFlips = TileLayer::TileFlipY; }
+								} else if (flip == RotateCW) { outFlips = TileLayer::TileRot; }
+								else { outFlips = TileLayer::TileRot | TileLayer::TileFlipX | TileLayer::TileFlipY; }
+							} else if (flip & (FlipY|FlipX)) {
+								if ((flip & FlipX) && !(properties & TileSet::CanFlipX)) {
+									if (properties & TileSet::CanRot) {
+										outFlips = (flip&FlipY) ? (TileLayer::TileRot | TileLayer::TileFlipY ) : TileLayer::TileRot;
+									} else { outFlips = (flip & FlipY) ? (TileLayer::TileFlipY) : TileLayer::NoFlip; }
+								}
+							} else if ((flip & FlipY) && !(properties & TileSet::CanFlipY)) {
+								if (properties & TileSet::CanRot) {
+									outFlips = (flip & FlipX) ? TileLayer::TileRot : (TileLayer::TileRot | TileLayer::TileFlipX);
+								} else { outFlips = (flip & FlipX) ? (TileLayer::TileFlipX) : TileLayer::NoFlip; }
+							} else {
+								if (flip & FlipX) { outFlips |= TileLayer::TileFlipX; }
+								if (flip & FlipY) { outFlips |= TileLayer::TileFlipY; }
+							}
+							// mask out unused bits, f.e. 4 -> (old & 3) | ((old>>1)&(~3))
+							if (!(properties & TileSet::CanFlipX)) {
+								outFlips = (outFlips & (TileSet::CanFlipX - 1)) || ((outFlips >> 1)& (~(TileSet::CanFlipX - 1)));
+							}
+							if (!(properties & TileSet::CanRot)) {
+								outFlips = (outFlips & (TileSet::CanFlipY - 1)) || ((outFlips >> 1)& (~(TileSet::CanFlipY - 1)));
+							}
+							if (!(properties & TileSet::CanRot)) {
+								outFlips = (outFlips & (TileSet::CanRot - 1)) || ((outFlips >> 1)& (~(TileSet::CanRot - 1)));
+							}
+							index += outFlips;
+						}
+
+
+
+
 						if (screen) { screen[slot] = index; }
 					}
 					break;
@@ -566,7 +610,7 @@ bool MergeLayerData(TileMap &map, TileLayer &srcLayer, TileLayer &dstLayer)
 	// all layers have the same size in Tiled so this shouldn't be an issue, can't merge different sized layers
 	if (srcLayer.width != dstLayer.width || srcLayer.height != dstLayer.height) { return false; }
 
-	size_t count = srcLayer.width * srcLayer.height;
+	size_t count = (size_t)srcLayer.width * (size_t)srcLayer.height;
 	for (size_t slot = 0; slot < count; ++slot) {
 		dstMap[slot] = (dstMap[slot] & and) | ((srcMap[slot] << shift) & mask);
 	}
@@ -579,9 +623,10 @@ bool MergeFlipData(TileMap& map, TileLayer& srcLayer, TileLayer& dstLayer)
 	bool flipToCRAM = srcLayer.flipTarget.after(',').get_trimmed_ws().same_str("CRAM");
 	uint8_t* srcMap = srcLayer.screen;
 	uint8_t* dstMap = dstLayer.screen;
-	if (dstLayer.metaMap) {
-		dstMap = dstLayer.metaMap;
-	} else if (srcLayer.type == TileLayer::CRAM) {
+/*	if (dstLayer.metaMap) {
+//		dstMap = dstLayer.metaMap;
+		return true; // flips already applied to screen...
+	} else*/ if (srcLayer.type == TileLayer::CRAM) {
 		dstMap = dstLayer.color;
 	}
 
@@ -676,7 +721,7 @@ bool MergeChars(TileMap& map, TileLayer& srcLayer, TileLayer& dstLayer)
 	}
 
 	if (srcLayer.screen) {
-		for (size_t slot = 0, n = srcLayer.width * srcLayer.height; slot < n; ++slot) {
+		for (size_t slot = 0, n = (size_t)srcLayer.width * (size_t)srcLayer.height; slot < n; ++slot) {
 			srcLayer.screen[slot] = mapSrc[srcLayer.screen[slot]];
 		}
 	}

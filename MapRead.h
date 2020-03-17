@@ -13,6 +13,7 @@ struct TileSet {
 	uint8_t *imageData;
 	uint8_t *imagePalettized;
 	uint8_t *tileProperties;	// bits from TileProperty enums
+	uint8_t* tileIndex;			// based on tile property bits
 	strref xmlName;		// from map file
 	strref imageName;
 	uint32_t first;			// from map file
@@ -27,6 +28,7 @@ struct TileSet {
 // shift index 29 bits right to get rotation bits
 enum TileRotations {
 	Normal,
+	RotateFlag = 1,
 	RotateCW = 3,
 	RotateCCW = 5,
 	FlipY = 2,

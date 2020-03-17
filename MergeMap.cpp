@@ -483,9 +483,11 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			//WriteDataBits(strref path, strref file, strref ext, void *data, size_t size, size_t bits)
 
 			if (options.hasMeta && metaData) {
-				WriteDataBits(path, target, ".mta", metaData, metaSize, screenBits);
+				printf("Writing " STRREF_FMT ".mta: %d bytes, %d bits indexing\n", STRREF_ARG(target), (int)metaSize, (int)screenBits);
+				WriteDataBits(path, target, ".mta", metaData, metaSize, metaMapBits);
 			} else {
 				if (options.hasScreen && screen) {
+					printf("Writing " STRREF_FMT ".scr: %d bytes, %d bits indexing\n", STRREF_ARG(target), (int)metaSize, (int)screenBits);
 					WriteDataBits(path, target, ".scr", screen, screenSize, screenBits);
 				}
 				if (options.hasColor && color) {

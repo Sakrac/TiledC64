@@ -21,7 +21,7 @@
 void MakeMetaLayer(TileMap& map, TileLayer& layer)
 {
 	if (layer.metaX > 1 || layer.metaY > 1) {
-		size_t charsPerTile = layer.metaX * layer.metaY;
+		size_t charsPerTile = (size_t)layer.metaX * (size_t)layer.metaY;
 		size_t width = layer.width;
 		size_t height = layer.height;
 		size_t metaX = layer.metaX;
@@ -49,7 +49,7 @@ void MakeMetaLayer(TileMap& map, TileLayer& layer)
 		for (size_t y = 0; y < metaHeight; ++y) {
 			for (size_t x = 0; x < metaWidth; ++x) {
 				size_t tl = y * metaY * width + x * metaX;
-				uint8_t f = layer.flips ? layer.flips[tl] : 0;
+				uint8_t f = 0;// layer.flips ? layer.flips[tl] : 0;
 				// copy map into a next potential tile to compare with previous ones
 				uint8_t* nextTiles = metaTileIndex + numIndex * metaSize;
 				uint8_t* nextColor = metaTileColor + numColor * metaSize;

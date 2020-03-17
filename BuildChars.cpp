@@ -654,20 +654,17 @@ bool MergeFlipData(TileMap& map, TileLayer& srcLayer, TileLayer& dstLayer)
 	// all layers have the same size in Tiled so this shouldn't be an issue, can't merge different sized layers
 	if (srcLayer.width != dstLayer.width || srcLayer.height != dstLayer.height) { return false; }
 
-	size_t wid = dstLayer.width / dstLayer.metaX;
-	size_t hgt = dstLayer.height / dstLayer.metaY;
+	size_t wid = dstLayer.width;
+	size_t hgt = dstLayer.height;
 
 	for (size_t y = 0; y < hgt; ++y) {
 		for (size_t x = 0; x < wid; ++x) {
-			uint8_t flip = srcLayer.flips[x * dstLayer.metaX + y * dstLayer.metaY * srcLayer.width];
+			uint8_t flip = srcLayer.flips[x + y * srcLayer.width];
 			uint8_t fr = 0;
-			if (flip == RotateCW) { fr |= rot; }
-			else if (flip == RotateCCW) { fr |= rot | flipX | flipY; }
-			else {
-				if (flip & FlipX) { fr |= flipX; }
-				if (flip & FlipY) { fr |= flipY; }
-			}
-			*dstMap = (*dstMap & (~mask)) | (flip & mask);
+			if (flip & TileLayer::TileRot) { fr |= rot; }
+			if (flip & TileLayer::TileFlipX) { fr |= flipX; }
+			if (flip & TileLayer::TileFlipY) { fr |= flipY; }
+			*dstMap = (*dstMap & (~mask)) | (fr & mask);
 			++dstMap;
 		}
 	}

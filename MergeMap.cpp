@@ -3,6 +3,7 @@
 // selection of file types must match between all source maps
 
 #include <vector>
+#include <assert.h>
 #include "struse\struse.h"
 #include "MapRead.h"
 #include "MapWrite.h"
@@ -69,6 +70,7 @@ bool WriteData(strref path, strref file, strref ext, void *data, size_t size)
 	merge.cleanup_path();
 	return WriteData(merge.c_str(), data, size);
 }
+
 
 bool WriteDataBits(strref path, strref file, strref ext, void *data, size_t size, size_t bits)
 {
@@ -252,6 +254,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 					free(logData);
 				} else { success = false; }
 			}
+			
 
 			if (first) { metaTileSize = metaX * metaY; }
 
@@ -307,7 +310,8 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
-			// first insert chars
+			
+		// first insert chars
 			uint8_t remapChars[256] = {};
 			uint8_t flipMatch[256] = {};
 			for (size_t c = 0, n = charSize / 8; c < n; ++c) {
@@ -332,6 +336,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 				remapChars[c] = (uint8_t)match;
 			}
+			
 			{	// replace chars in screen or meta tiles
 				uint8_t indexMask = 0;
 				while (numChars && indexMask < (numChars - 1)) { indexMask = (indexMask << 1) | 1; }
@@ -355,7 +360,8 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
-			// insert meta tiles..
+			
+// insert meta tiles..
 			if (!options.hasMetaLookup && metaTileIndex && metaTileColor) {
 				uint8_t remapTiles[256] = {};
 				for (size_t t = 0, n = metaTileIndexSize / metaTileSize; t < n; ++t) {
@@ -374,18 +380,27 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 					}
 					if (match < 0) {
 						if (numMetaTileScreen < 256) {
+							assert((numMetaTileScreen + 1)* metaTileSize < 256 * 256);
+							
 							memcpy(mergedTileIndex + numMetaTileScreen * metaTileSize, loaded, metaTileSize);
-							memcpy(metaTileColor + numMetaTileColor * metaTileSize, loaded, metaTileSize);
+							
+							memcpy(mergedTileColor + numMetaTileColor * metaTileSize, loaded, metaTileSize);
+							
 							match = (int)numMetaTileScreen;
 							++numMetaTileScreen;
 							++numMetaTileColor;
+							
+
 						} else {
 							match = 0;
 							success = false;
 						}
 					}
 					remapTiles[t] = (uint8_t)match;
+					
 				}
+				
+
 				if (options.hasMeta) {
 					uint8_t indexMask = 0;
 					while (numMetaTileScreen && indexMask < (numMetaTileScreen - 1)) { indexMask = (indexMask << 1) | 1; }
@@ -395,6 +410,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 						}
 					}
 				}
+				
 			} else if (options.hasMetaScreen && metaTileIndex) {
 				uint8_t remapTileScreen[256] = {};
 				for (size_t t = 0, n = metaTileIndexSize / metaTileSize; t < n; ++t) {
@@ -437,6 +453,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
+			
 			
 
 			// insert meta color tiles.. (if separate tiles for color & screen)
@@ -513,6 +530,8 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
+			
+		
 			// each map still needs:
 			// * meta tile map
 			// or
@@ -524,6 +543,8 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			if (options.hasMeta && metaData) {
 				printf("Writing " STRREF_FMT ".mta: %d bytes, %d bits indexing\n", STRREF_ARG(target), (int)metaSize, (int)screenBits);
 				WriteDataBits(path, target, ".mta", metaData, metaSize, metaMapBits);
+
+				
 			} else {
 				if (options.hasScreen && screen) {
 					printf("Writing " STRREF_FMT ".scr: %d bytes, %d bits indexing\n", STRREF_ARG(target), (int)metaSize, (int)screenBits);
@@ -534,14 +555,17 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
-			if (charData) { free(charData); }
-			if (metaData) { free(metaData); }
-			if (metaLookupIndex) { free(metaLookupIndex); }
-			if (metaLookupColor) { free(metaLookupColor); }
-			if (screen) { free(screen); }
-			if (color) { free(color); }
+			if (charData) { free(charData); charData = nullptr; }
+			if (metaData) { free(metaData); metaData = nullptr; }
+			if (metaLookupIndex) { free(metaLookupIndex); metaLookupIndex = nullptr; }
+			if (metaLookupColor) { free(metaLookupColor); metaLookupColor = nullptr; }
+			if (screen) { free(screen); screen = nullptr; }
+			if (color) { free(color); color = nullptr; }
 
-			if (!success) { break; }
+			if (!success) {
+				break;
+			}
+			
 
 			first = false;
 		}

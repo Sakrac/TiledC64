@@ -159,7 +159,7 @@ bool ReadMapXML(void* user, strref tag_or_data, const strref* tag_stack, int dep
 		size_t index = 0;
 		if (tag_stack[0].get_word().same_str("data") && tag_stack[1].get_word().same_str("layer")) {
 			while( strref value = tag_or_data.split_token(',')) {
-				layer.map[index++] = (uint32_t)value.atoi();
+				if (layer.map) { layer.map[index++] = (uint32_t)value.atoi(); }
 				if (index >= count) { break; }
 			}
 		}
@@ -171,7 +171,7 @@ void MakeRoomForTiles(TileMap& map, uint32_t oldFirst, uint32_t newFirst)
 {
 	// update all layers
 	for (std::vector<TileLayer>::iterator layer = map.layers.begin(); layer != map.layers.end(); ++layer) {
-		size_t count = layer->width * layer->height;
+		size_t count = (size_t)layer->width * (size_t)layer->height;
 		for (size_t slot = 0; slot < count; ++slot) {
 			uint32_t tile = layer->map[slot] & 0xfffffff;
 			if (tile >= oldFirst) {

@@ -3,9 +3,11 @@
 // selection of file types must match between all source maps
 
 #include <vector>
+#include <assert.h>
 #include "struse\struse.h"
 #include "MapRead.h"
 #include "MapWrite.h"
+#include "BuildChars.h"
 
 uint8_t* LoadData(const char* filename, size_t &size)
 {
@@ -69,6 +71,7 @@ bool WriteData(strref path, strref file, strref ext, void *data, size_t size)
 	return WriteData(merge.c_str(), data, size);
 }
 
+
 bool WriteDataBits(strref path, strref file, strref ext, void *data, size_t size, size_t bits)
 {
 	if (bits && bits != 8) {	// 0 bits => 8 bits
@@ -96,18 +99,39 @@ uint8_t* UnpackFile(uint8_t *packed, size_t &packSize, size_t unpackSize, size_t
 	return unpacked;
 }
 
+struct LayerOptions {
+	bool hasChars;
+	bool hasMeta;
+	bool hasMetaLookup;
+	bool hasMetaScreen;
+	bool hasMetaColor;
+	bool hasScreen;
+	bool hasColor;
+
+	bool hasFlipX;
+	bool hasFlipY;
+	bool hasRot;
+	bool canInvert;
+
+};
+
 bool MergeMaps(const char *sourceListFile, const char *targetFile)
 {
 	size_t sourceSize;
 	if (char* sources = LoadText(sourceListFile, sourceSize)) {
 		// first file determines valid files
-		bool hasChars = true;
-		bool hasMeta = true;
-		bool hasMetaLookup = true;
-		bool hasMetaScreen = true;
-		bool hasMetaColor = true;
-		bool hasScreen = true;
-		bool hasColor = true;
+		LayerOptions options;
+		options.hasChars = true;
+		options.hasMeta = true;
+		options.hasMetaLookup = true;
+		options.hasMetaScreen = true;
+		options.hasMetaColor = true;
+		options.hasScreen = true;
+		options.hasColor = true;
+
+		options.hasFlipX = false;
+		options.hasFlipY = false;
+		options.hasRot = false;
 
 
 		// file is path relative to source list folder
@@ -139,7 +163,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			target.trim_whitespace();
 			strref source = target.split_token_trim(':');
 
-			size_t charSize = 0;
+			size_t charSize = 0; // bytes in charData
 			uint64_t *charData = nullptr;
 			size_t metaSize = 0;
 			uint8_t *metaData = nullptr;
@@ -155,6 +179,10 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			uint8_t *screen = nullptr;
 			size_t colorSize = 0;
 			uint8_t *color = nullptr;
+
+			int flipXBit = -1;
+			int flipYBit = -1;
+			int rotBit = -1;
 
 			size_t wid = 40, hgt = 40;
 			size_t numMetaLookup = 0;
@@ -172,8 +200,8 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 						if (param.same_str("width")) { wid = (size_t)line.atoi(); }
 						else if (param.same_str("height")) { hgt = (size_t)line.atoi(); }
 						else if (param.same_str("meta")) {
-							if (first) { hasMeta = !!line.atoi(); hasScreen = !hasMeta; }
-							else if (hasMeta != !!line.atoi()) { success = false; }
+							if (first) { options.hasMeta = !!line.atoi(); options.hasScreen = !options.hasMeta; }
+							else if (options.hasMeta != !!line.atoi()) { success = false; }
 						} else if (param.same_str("screenBits")) {
 							if (first) { screenBits = (size_t)line.atoi(); }
 							else if (screenBits != line.atoi()) { success = false; }
@@ -181,14 +209,14 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 							if (first) { colorBits = (size_t)line.atoi(); }
 							else if (colorBits != line.atoi()) { success = false; }
 						}  else if (param.same_str("hasColor")) {
-							if (first) { hasColor = !!line.atoi(); }
-							else if (hasColor != !!line.atoi()) { success = false; }
+							if (first) { options.hasColor = !!line.atoi(); options.hasMetaColor = options.hasColor; }
+							else if (options.hasColor != !!line.atoi()) { success = false; }
 						}  else if (param.same_str("hasChars")) {
-							if (first) { hasChars = !!line.atoi(); }
-							else if (hasChars != !!line.atoi()) { success = false; }
+							if (first) { options.hasChars = !!line.atoi(); }
+							else if (options.hasChars != !!line.atoi()) { success = false; }
 						}  else if (param.same_str("metaLookup")) {
-							if (first) { hasMetaLookup = !!line.atoi(); }
-							else if (hasMetaLookup != !!line.atoi()) { success = false; }
+							if (first) { options.hasMetaLookup = !!line.atoi(); }
+							else if (options.hasMetaLookup != !!line.atoi()) { success = false; }
 						} else if (param.same_str("metaX")) {
 							if (first) { metaX = (size_t)line.atoi(); }
 							else if (metaX != line.atoi()) { success = false; }
@@ -207,11 +235,26 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 							numMetaColor = (size_t)line.atoi();
 						} else if (param.same_str("numMetaLookup")) {
 							layerNumLookup = (size_t)line.atoi();
+						} else if (param.same_str("hasFlipX")) {
+							options.hasFlipX = (size_t)line.atoi();
+						} else if (param.same_str("hasFlipY")) {
+							options.hasFlipY = (size_t)line.atoi();
+						} else if (param.same_str("hasRot")) {
+							options.hasRot = (size_t)line.atoi();
+						} else if (param.same_str("canInvert")) {
+							options.canInvert = (size_t)line.atoi();
+						} else if (param.same_str("flipXBit")) {
+							flipXBit = (int)line.atoi();
+						} else if (param.same_str("flipYBit")) {
+							flipYBit = (int)line.atoi();
+						} else if (param.same_str("rotBit")) {
+							rotBit = (int)line.atoi();
 						}
 					}
 					free(logData);
 				} else { success = false; }
 			}
+			
 
 			if (first) { metaTileSize = metaX * metaY; }
 
@@ -223,61 +266,66 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				break;
 			}
 
-			if (hasChars) {
+			if (options.hasChars) {
 				charData = (uint64_t*)LoadData(path, source, strref(".chr"), charSize);
 				if (!charData) {
 					printf("could not read chars for map " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
-			if (hasMeta) {
+			if (options.hasMeta) {
 				metaData = LoadDataBits(path, source, strref(".mta"), metaSize, metaMapBits, metaWid * metaHgt);
 				if (!metaData) {
 					printf("could not read meta map for " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
-			if (hasMeta && hasMetaLookup) {
+			if (options.hasMeta && options.hasMetaLookup) {
 				metaLookupIndex = LoadDataBits(path, source, strref(".mls"), metaLookupIndexSize, metaLookupBits, layerNumLookup);
 				metaLookupColor = LoadDataBits(path, source, strref(".mlc"), metaLookupColorSize, metaLookupBits, layerNumLookup);
 				if (!metaLookupIndex || !metaLookupColor) {
 					printf("could not read meta lookup table for " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
-			if (hasMetaScreen) {
+			if (options.hasMetaScreen) {
 				metaTileIndex = LoadDataBits(path, source, strref(".mts"), metaTileIndexSize, screenBits, numMetaIndex * metaX * metaY);
 				if (!metaTileIndex) {
 					printf("could not read meta screen tiles for " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
-			if (hasMetaLookup && hasMetaColor) {
+			if (/*options.hasMetaLookup &&*/ options.hasMetaColor) {
 				metaTileColor = LoadDataBits(path, source, strref(".mtc"), metaTileColorSize, colorBits, numMetaIndex * metaX * metaY);
 				if (!metaTileColor) {
 					printf("could not read meta color tiles for " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
-			if (hasScreen) {
+			if (options.hasScreen) {
 				screen = LoadDataBits(path, source, strref(".scr"), screenSize, screenBits, wid * hgt);
 				if (!screen) {
 					printf("could not read screen for " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
-			if (hasScreen && hasColor) {
+			if (options.hasScreen && options.hasColor) {
 				color = LoadDataBits(path, source, strref(".col"), colorSize, colorBits, wid * hgt);
 				if (!color) {
 					printf("could not read color for " STRREF_FMT "\n", STRREF_ARG(source)); success = false;
 				}
 			}
 
+			
 			// first insert chars
 			uint8_t remapChars[256] = {};
+			uint8_t flipMatch[256] = {};
 			for (size_t c = 0, n = charSize / 8; c < n; ++c) {
-				int match = -1;
-				for (size_t d = 0; d < numChars; ++d) {
-					if (charData[c] == mergedChars[d]) {
-						match = (int)d;
-						break;
-					}
-				}
-				if (match < 0) {
+				uint32_t pm = 0;
+				uint64_t charBits = charData[c];
+				int match = FindMatchChar(&pm, charBits, (int)numChars, mergedChars,
+										  options.hasFlipX,
+										  options.hasFlipY,
+										  options.hasRot,
+										  options.canInvert);
+				if (match >= 0) {
+					// apply flip, rot & invert colors if a matching permutation was found
+					flipMatch[c] = (uint8_t)pm;
+				} else {
 					if (numChars < 256) {
 						match = (int)numChars;
 						mergedChars[numChars++] = charData[c];
@@ -288,18 +336,77 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 				remapChars[c] = (uint8_t)match;
 			}
+			
 			{	// replace chars in screen or meta tiles
 				uint8_t indexMask = 0;
 				while (numChars && indexMask < (numChars - 1)) { indexMask = (indexMask << 1) | 1; }
-				size_t numCharIndices = hasMetaScreen ? metaTileIndexSize : screenSize;
-				uint8_t *charIndices = hasMetaScreen ? metaTileIndex : screen;
+				size_t numCharIndices = options.hasMetaScreen ? metaTileIndexSize : screenSize;
+				uint8_t *charIndices = options.hasMetaScreen ? metaTileIndex : screen;
 				for (size_t i = 0; i < numCharIndices; ++i) {
 					charIndices[i] = (charIndices[i] & (~indexMask)) | remapChars[charIndices[i] & indexMask];
+					if ((flipMatch[i] & TileLayer::TileFlipX) && flipXBit >= 0) { charIndices[i] ^= (uint8_t)(1 << flipXBit); }
+					if ((flipMatch[i] & TileLayer::TileFlipY) && flipYBit >= 0) { charIndices[i] ^= (uint8_t)(1 << flipYBit); }
+					if ((flipMatch[i] & TileLayer::TileRot) && rotBit >= 0) { charIndices[i] ^= (uint8_t)(1 << rotBit); }
+				}
+				if (((options.hasColor && color) || (options.hasMetaColor && metaTileColor))) {
+					size_t numColorIndices = options.hasMetaColor ? metaTileColorSize : screenSize;
+					uint8_t* colorIndices = options.hasMetaColor ? metaTileColor : color;
+					for (size_t c = 0; c < numColorIndices; ++c) {
+						uint8_t index = charIndices[c] & indexMask;
+						if (options.canInvert && flipMatch[index] & TileLayer::Inverted) {
+							colorIndices[index] = colorIndices[index] << 4 | colorIndices[index] >> 4;
+						}
+					}
 				}
 			}
 
+			
 			// insert meta tiles..
-			if (hasMetaScreen && metaTileIndex) {
+			if (!options.hasMetaLookup && metaTileIndex && metaTileColor) {
+				uint8_t remapTiles[256] = {};
+				for (size_t t = 0, n = metaTileIndexSize / metaTileSize; t < n; ++t) {
+					int match = -1;
+					uint8_t *loaded = metaTileIndex + t * metaTileSize;
+					uint8_t *loadCol = metaTileColor + t * metaTileSize;
+					uint8_t *check = mergedTileIndex;
+					uint8_t* chkCol = mergedTileColor;
+					for (size_t u = 0; u < numMetaTileScreen; ++u) {
+						if (memcmp(loaded, check, metaTileSize) == 0 && memcmp(loadCol, chkCol, metaTileSize)) {
+							match = (int)u;
+							break;
+						}
+						check += metaTileSize;
+						chkCol += metaTileSize;
+					}
+					if (match < 0) {
+						if (numMetaTileScreen < 256) {
+							assert((numMetaTileScreen + 1)* metaTileSize < 256 * 256);
+							memcpy(mergedTileIndex + numMetaTileScreen * metaTileSize, loaded, metaTileSize);
+							memcpy(mergedTileColor + numMetaTileColor * metaTileSize, loadCol, metaTileSize);
+							match = (int)numMetaTileScreen;
+							++numMetaTileScreen;
+							++numMetaTileColor;
+						} else {
+							match = 0;
+							success = false;
+						}
+					}
+					remapTiles[t] = (uint8_t)match;
+					
+				}
+				
+
+				if (options.hasMeta) {
+					uint8_t indexMask = 0;
+					while (numMetaTileScreen && indexMask < (numMetaTileScreen - 1)) { indexMask = (indexMask << 1) | 1; }
+					if (metaData) {
+						for (size_t i = 0; i < metaSize; ++i) {
+							metaData[i] = (metaData[i] & (~indexMask)) | remapTiles[metaData[i] & indexMask];
+						}
+					}
+				}
+				
+			} else if (options.hasMetaScreen && metaTileIndex) {
 				uint8_t remapTileScreen[256] = {};
 				for (size_t t = 0, n = metaTileIndexSize / metaTileSize; t < n; ++t) {
 					int match = -1;
@@ -324,10 +431,10 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 					}
 					remapTileScreen[t] = (uint8_t)match;
 				}
-				if (hasMeta) {
+				if (options.hasMeta) {
 					uint8_t indexMask = 0;
 					while (numMetaTileScreen && indexMask < (numMetaTileScreen - 1)) { indexMask = (indexMask << 1) | 1; }
-					if (hasMetaLookup) {
+					if (options.hasMetaLookup) {
 						if (metaLookupIndex) {
 							for (size_t i = 0; i < metaLookupIndexSize; ++i) {
 								metaLookupIndex[i] = (metaLookupIndex[i] & (~indexMask)) | remapTileScreen[metaLookupIndex[i] & indexMask];
@@ -341,9 +448,14 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
-			// insert meta color tiles..
-			if (hasMetaColor && metaTileColor) {
+			
+			
+
+			// insert meta color tiles.. (if separate tiles for color & screen)
+			if (options.hasMetaLookup && options.hasMetaColor && metaTileColor) {
 				uint8_t remapTileColor[256] = {};
+				// substitute color order for inverted tiles
+
 				for (size_t t = 0, n = metaTileColorSize / metaTileSize; t < n; ++t) {
 					int match = -1;
 					uint8_t *loaded = metaTileColor + t * metaTileSize;
@@ -367,10 +479,10 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 					}
 					remapTileColor[t] = (uint8_t)match;
 				}
-				if (hasMeta && metaLookupColor) {
+				if (options.hasMeta && metaLookupColor) {
 					uint8_t indexMask = 0;
 					while (numMetaTileColor && indexMask < (numMetaTileColor - 1)) { indexMask = (indexMask << 1) | 1; }
-					if (hasMetaLookup) {
+					if (options.hasMetaLookup) {
 						if (metaLookupIndex) {
 							for (size_t i = 0; i < metaLookupColorSize; ++i) {
 								metaLookupColor[i] = (metaLookupColor[i] & (~indexMask)) | remapTileColor[metaLookupColor[i] & indexMask];
@@ -381,7 +493,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			}
 
 			// now apply the meta lookup table to the merged table
-			if (hasMetaLookup && metaLookupColor && metaLookupIndex && metaData) {
+			if (options.hasMetaLookup && metaLookupColor && metaLookupIndex && metaData) {
 				uint8_t remapLookup[256] = {};
 				for (size_t l = 0; l < metaLookupIndexSize; ++l) {
 					uint8_t idx = metaLookupIndex[l];
@@ -413,6 +525,8 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 				}
 			}
 
+			
+		
 			// each map still needs:
 			// * meta tile map
 			// or
@@ -421,25 +535,32 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 
 			//WriteDataBits(strref path, strref file, strref ext, void *data, size_t size, size_t bits)
 
-			if (hasMeta && metaData) {
-				WriteDataBits(path, target, ".mta", metaData, metaSize, screenBits);
+			if (options.hasMeta && metaData) {
+				printf("Writing " STRREF_FMT ".mta: %d bytes, %d bits indexing\n", STRREF_ARG(target), (int)metaSize, (int)screenBits);
+				WriteDataBits(path, target, ".mta", metaData, metaSize, metaMapBits);
+
+				
 			} else {
-				if (hasScreen && screen) {
+				if (options.hasScreen && screen) {
+					printf("Writing " STRREF_FMT ".scr: %d bytes, %d bits indexing\n", STRREF_ARG(target), (int)metaSize, (int)screenBits);
 					WriteDataBits(path, target, ".scr", screen, screenSize, screenBits);
 				}
-				if (hasColor && color) {
+				if (options.hasColor && color) {
 					WriteDataBits(path, target, ".col", color, colorSize, colorBits);
 				}
 			}
 
-			if (charData) { free(charData); }
-			if (metaData) { free(metaData); }
-			if (metaLookupIndex) { free(metaLookupIndex); }
-			if (metaLookupColor) { free(metaLookupColor); }
-			if (screen) { free(screen); }
-			if (color) { free(color); }
+			if (charData) { free(charData); charData = nullptr; }
+			if (metaData) { free(metaData); metaData = nullptr; }
+			if (metaLookupIndex) { free(metaLookupIndex); metaLookupIndex = nullptr; }
+			if (metaLookupColor) { free(metaLookupColor); metaLookupColor = nullptr; }
+			if (screen) { free(screen); screen = nullptr; }
+			if (color) { free(color); color = nullptr; }
 
-			if (!success) { break; }
+			if (!success) {
+				break;
+			}
+			
 
 			first = false;
 		}

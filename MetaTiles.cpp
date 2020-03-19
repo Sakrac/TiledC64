@@ -21,7 +21,7 @@
 void MakeMetaLayer(TileMap& map, TileLayer& layer)
 {
 	if (layer.metaX > 1 || layer.metaY > 1) {
-		size_t charsPerTile = layer.metaX * layer.metaY;
+		size_t charsPerTile = (size_t)layer.metaX * (size_t)layer.metaY;
 		size_t width = layer.width;
 		size_t height = layer.height;
 		size_t metaX = layer.metaX;
@@ -32,7 +32,7 @@ void MakeMetaLayer(TileMap& map, TileLayer& layer)
 		size_t maxTiles = metaWidth * metaHeight;
 		uint8_t* metaTileIndex = layer.screen ? (uint8_t*)calloc(1, maxTiles * charsPerTile) : nullptr;
 		uint8_t* metaTileColor = layer.color ? (uint8_t*)calloc(1, maxTiles * charsPerTile) : nullptr;
-		uint8_t* metaLookupMap = (layer.screen && layer.color) ? (uint8_t*)calloc(1, maxTiles) : nullptr;
+		uint8_t* metaLookupMap = (layer.metaLookupBits && layer.screen && layer.color) ? (uint8_t*)calloc(1, maxTiles) : nullptr;
 		uint8_t* metaLookupColor = (layer.screen && layer.color) ? (uint8_t*)calloc(1, maxTiles) : nullptr;
 		uint8_t* metaMap = (uint8_t*)calloc(1, maxTiles), *metaOut = metaMap;
 
@@ -49,7 +49,7 @@ void MakeMetaLayer(TileMap& map, TileLayer& layer)
 		for (size_t y = 0; y < metaHeight; ++y) {
 			for (size_t x = 0; x < metaWidth; ++x) {
 				size_t tl = y * metaY * width + x * metaX;
-				uint8_t f = layer.flips ? layer.flips[tl] : 0;
+				uint8_t f = 0;// layer.flips ? layer.flips[tl] : 0;
 				// copy map into a next potential tile to compare with previous ones
 				uint8_t* nextTiles = metaTileIndex + numIndex * metaSize;
 				uint8_t* nextColor = metaTileColor + numColor * metaSize;
@@ -74,39 +74,60 @@ void MakeMetaLayer(TileMap& map, TileLayer& layer)
 				}
 				size_t matchIndex = 0;
 				size_t matchColor = 0;
-				// match with existing index meta tles
-				if (metaTileIndex) {
-					for (; matchIndex < numIndex; ++matchIndex) {
-						bool match = true;
-						uint8_t* checkTiles = metaTileIndex + matchIndex * metaSize;
-						for (size_t chk = 0; chk < metaSize; ++chk) {
-							if (checkTiles[chk] != nextTiles[chk]) {
-								match = false;
-								break;
+				if (!metaLookupMap) {
+					// both color and tiles must match
+					if (metaTileIndex) {
+						for (; matchIndex < numIndex; ++matchIndex) {
+							bool match = true;
+							uint8_t* checkTiles = metaTileIndex + matchIndex * metaSize;
+							uint8_t* checkColor = metaTileColor ? (metaTileColor + matchIndex * metaSize) : nullptr;
+							for (size_t chk = 0; chk < metaSize; ++chk) {
+								if (checkTiles[chk] != nextTiles[chk] || (checkColor && (checkColor[chk] != nextColor[chk]))) {
+									match = false;
+									break;
+								}
 							}
+							if (match) { break; }
 						}
-						if (match) { break; }
+						if (matchIndex >= numIndex) { ++numIndex; ++numColor; }
+						matchColor = matchIndex;
 					}
-					if (matchIndex >= numIndex) { ++numIndex; }
-				}
-				// match with existing color meta tles
-				if (metaTileColor) {
-					for (; matchColor < numColor; ++matchColor) {
-						bool match = true;
-						uint8_t* checkColor = metaTileColor + matchColor * metaSize;
-						for (size_t chk = 0; chk < metaSize; ++chk) {
-							if (checkColor[chk] != nextColor[chk]) {
-								match = false;
-								break;
+				} else {
+					// match with existing index meta tles
+					if (metaTileIndex) {
+						for (; matchIndex < numIndex; ++matchIndex) {
+							bool match = true;
+							uint8_t* checkTiles = metaTileIndex + matchIndex * metaSize;
+							for (size_t chk = 0; chk < metaSize; ++chk) {
+								if (checkTiles[chk] != nextTiles[chk]) {
+									match = false;
+									break;
+								}
 							}
+							if (match) { break; }
 						}
-						if (match) { break; }
+						if (matchIndex >= numIndex) { ++numIndex; }
 					}
-					if (matchColor >= numColor) { ++numColor; }
+					// match with existing color meta tles
+					if (metaTileColor) {
+						for (; matchColor < numColor; ++matchColor) {
+							bool match = true;
+							uint8_t* checkColor = metaTileColor + matchColor * metaSize;
+							for (size_t chk = 0; chk < metaSize; ++chk) {
+								if (checkColor[chk] != nextColor[chk]) {
+									match = false;
+									break;
+								}
+							}
+							if (match) { break; }
+						}
+						if (matchColor >= numColor) { ++numColor; }
+					}
 				}
 				// match a color/index combo?
-				size_t matchMeta = 0;
+				size_t matchMeta = matchIndex;
 				if (metaLookupMap && metaLookupColor) {
+					matchMeta = 0;
 					for (; matchMeta < numMeta; ++matchMeta) {
 						if (metaLookupMap[matchMeta] == (uint8_t)matchIndex && metaLookupColor[matchMeta] == (uint8_t)matchColor) {
 							break;
@@ -122,7 +143,7 @@ void MakeMetaLayer(TileMap& map, TileLayer& layer)
 				} else if (metaTileColor) {
 					matchMeta = matchColor;
 				}
-				*metaOut++ = (uint8_t)matchMeta;
+				if (metaOut) { *metaOut++ = (uint8_t)matchMeta; }
 			}
 		}
 		layer.numMeta = numMeta;

@@ -170,11 +170,6 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		// Apply meta tiling as needed
-		for (int l = 0, n = (int)map.layers.size(); l < n; ++l) {
-			MakeMetaLayer(map, map.layers[l]);
-		}
-
 		// If flip bits are requested they should be applied to the meta data, not the individual chars.
 		for (int l = 0, n = (int)map.layers.size(); l < n; ++l) {
 			if (map.layers[l].flipTarget) {
@@ -191,6 +186,11 @@ int main(int argc, char* argv[])
 					}
 				}
 			}
+		}
+
+		// Apply meta tiling as needed
+		for (int l = 0, n = (int)map.layers.size(); l < n; ++l) {
+			MakeMetaLayer(map, map.layers[l]);
 		}
 
 		// summarize the result

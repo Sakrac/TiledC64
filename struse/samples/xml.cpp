@@ -15,7 +15,7 @@ bool ParseXML(strref xml, XMLDataCB callback, void *user)
 		char c = tag.get_first();
 		if (c=='!' || c=='?') {
 			// this is a comment or control tag so can probably be ignored
-		} else  if (c=='/') {
+		} else if (c=='/') {
 			// this is a closing tag
 			++tag;	// skip '/'
 			tag.skip_whitespace();
@@ -28,6 +28,8 @@ bool ParseXML(strref xml, XMLDataCB callback, void *user)
 				return false;
 			}
 			sp++;
+			// in case there are superflouos text after the main body
+			if (sp == XML_DEPTH_MAX) { return true; }
 		} else if (tag.get_last()=='/') {
 			// this is a self-closing tag
 			strref tag_name = tag.get_substr(0, tag.get_len()-1);

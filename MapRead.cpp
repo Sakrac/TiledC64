@@ -126,6 +126,12 @@ bool ReadMapXML(void* user, strref tag_or_data, const strref* tag_stack, int dep
 						if (arg.same_str("Rot")) { layer->flipType |= TileLayer::TileRot; }
 						if (arg.same_str("CRAM")) { layer->flipType |= TileLayer::ToCRAM; }
 					}
+				} else if (name.same_str("FlipX")) {
+					layer->flipType |= TileLayer::TileFlipX;
+				} else if (name.same_str("FlipY")) {
+					layer->flipType |= TileLayer::TileFlipY;
+				} else if (name.same_str("Rot")) {
+					layer->flipType |= TileLayer::TileRot;
 				} else if (name.same_str("bg")) {
 					int i = 0;
 					while (strref col = value.split_token(',')) {
@@ -153,7 +159,7 @@ bool ReadMapXML(void* user, strref tag_or_data, const strref* tag_stack, int dep
 		size_t index = 0;
 		if (tag_stack[0].get_word().same_str("data") && tag_stack[1].get_word().same_str("layer")) {
 			while( strref value = tag_or_data.split_token(',')) {
-				layer.map[index++] = (uint32_t)value.atoi();
+				if (layer.map) { layer.map[index++] = (uint32_t)value.atoi(); }
 				if (index >= count) { break; }
 			}
 		}
@@ -165,7 +171,7 @@ void MakeRoomForTiles(TileMap& map, uint32_t oldFirst, uint32_t newFirst)
 {
 	// update all layers
 	for (std::vector<TileLayer>::iterator layer = map.layers.begin(); layer != map.layers.end(); ++layer) {
-		size_t count = layer->width * layer->height;
+		size_t count = (size_t)layer->width * (size_t)layer->height;
 		for (size_t slot = 0; slot < count; ++slot) {
 			uint32_t tile = layer->map[slot] & 0xfffffff;
 			if (tile >= oldFirst) {
@@ -239,7 +245,13 @@ bool ReadTilesetXML(void* user, strref tag_or_data, const strref* tag_stack, int
 			// allocate a property flag table for the tileset.
 			if( tileset.count) {
 				tileset.tileProperties = (uint8_t*)malloc(tileset.count);
-				memset(tileset.tileProperties, TileSet::CanFlipX | TileSet::CanFlipY | TileSet::CanRot, tileset.count);
+				if (tileset.tileProperties) {
+					memset(tileset.tileProperties, TileSet::CanFlipX | TileSet::CanFlipY | TileSet::CanRot, tileset.count);
+				}
+				tileset.tileIndex = (uint8_t*)malloc(tileset.count);
+				if (tileset.tileIndex) {
+					for (size_t i = 0; i < tileset.count; ++i) { tileset.tileIndex[i] = (uint8_t)i; }
+				}
 			}
 		} else if (tag.same_str("image")) {
 			tileset.width = (int)XMLFindAttr(tag_or_data, strref("width")).atoi() / tileset.tile_wid;
@@ -313,6 +325,25 @@ bool LoadMap(const char *mapFilename, TileMap &map)
 		tileset->tileSetFile = tilesetData;
 		strref tilesetXML((const char*)tilesetData, (strl_t)tilesetFileSize);
 		ParseXML(tilesetXML, ReadTilesetXML, &map);
+
+		// update tile indices based on flip flags
+		for (uint32_t t = 0; t < tileset->count; ++t) {
+			if (tileset->tileProperties[t] & TileSet::EnumFlip) {
+				uint8_t n = 1;
+				for (uint8_t m = 1; m < TileSet::EnumFlip; m<<=1) {
+					if (tileset->tileProperties[t] & m) { n<<=1; }
+				}
+				if (n > 1) {
+					n -= 1; // already accounted for one slot..
+					// increament all following tiles
+					for (uint32_t t2 = t + 1; t2 < tileset->count; ++t2) {
+						tileset->tileIndex[t2] += n;
+					}
+				}
+			}
+		}
+		
+
 
 		++map.currTileSet;
 	}

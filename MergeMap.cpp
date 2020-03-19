@@ -311,7 +311,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			}
 
 			
-		// first insert chars
+			// first insert chars
 			uint8_t remapChars[256] = {};
 			uint8_t flipMatch[256] = {};
 			for (size_t c = 0, n = charSize / 8; c < n; ++c) {
@@ -361,7 +361,7 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 			}
 
 			
-// insert meta tiles..
+			// insert meta tiles..
 			if (!options.hasMetaLookup && metaTileIndex && metaTileColor) {
 				uint8_t remapTiles[256] = {};
 				for (size_t t = 0, n = metaTileIndexSize / metaTileSize; t < n; ++t) {
@@ -381,16 +381,11 @@ bool MergeMaps(const char *sourceListFile, const char *targetFile)
 					if (match < 0) {
 						if (numMetaTileScreen < 256) {
 							assert((numMetaTileScreen + 1)* metaTileSize < 256 * 256);
-							
 							memcpy(mergedTileIndex + numMetaTileScreen * metaTileSize, loaded, metaTileSize);
-							
-							memcpy(mergedTileColor + numMetaTileColor * metaTileSize, loaded, metaTileSize);
-							
+							memcpy(mergedTileColor + numMetaTileColor * metaTileSize, loadCol, metaTileSize);
 							match = (int)numMetaTileScreen;
 							++numMetaTileScreen;
 							++numMetaTileColor;
-							
-
 						} else {
 							match = 0;
 							success = false;
